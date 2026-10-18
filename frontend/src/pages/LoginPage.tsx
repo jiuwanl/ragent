@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Eye, EyeOff, Lock, User } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,7 +88,9 @@ export function LoginPage() {
               <Checkbox checked={remember} onCheckedChange={(value) => setRemember(Boolean(value))} />
               记住我
             </label>
-            <span className="text-xs text-muted-foreground">账号由管理员初始化</span>
+            <Link to="/register" className="text-xs font-medium text-primary hover:underline">
+              注册账号
+            </Link>
           </div>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <Button type="submit" className="w-full" disabled={isLoading}>

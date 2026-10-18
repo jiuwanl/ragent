@@ -38,6 +38,7 @@ import com.nageoffer.ai.ragent.user.dao.entity.UserDO;
 import com.nageoffer.ai.ragent.user.dao.mapper.UserMapper;
 import com.nageoffer.ai.ragent.user.enums.UserRole;
 import com.nageoffer.ai.ragent.user.service.UserService;
+import com.nageoffer.ai.ragent.user.support.PasswordHasher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -46,6 +47,14 @@ import org.springframework.stereotype.Service;
 public class UserServiceImpl implements UserService {
 
     private static final String DEFAULT_ADMIN_USERNAME = "admin";
+
+    /**
+     * 密码上限 64：低于 BCrypt 的 72 字节截断线，避免超长口令被静默截断后比对歧义
+     */
+    private static final int MIN_PASSWORD_LENGTH = 6;
+    private static final int MAX_PASSWORD_LENGTH = 64;
+    private static final int MIN_USERNAME_LENGTH = 2;
+    private static final int MAX_USERNAME_LENGTH = 64;
 
     private final UserMapper userMapper;
     private final BizChangeLogContext bizChangeLogContext;
@@ -84,6 +93,8 @@ public class UserServiceImpl implements UserService {
         String role = StrUtil.trimToNull(requestParam.getRole());
         Assert.notBlank(username, () -> new ClientException("用户名不能为空"));
         Assert.notBlank(password, () -> new ClientException("密码不能为空"));
+        validateUsernameLength(username);
+        validatePasswordLength(password);
 
         if (DEFAULT_ADMIN_USERNAME.equalsIgnoreCase(username)) {
             throw new ClientException("默认管理员用户名不可用");
@@ -93,7 +104,7 @@ public class UserServiceImpl implements UserService {
 
         UserDO record = UserDO.builder()
                 .username(username)
-                .password(password)
+                .password(PasswordHasher.encode(password))
                 .role(role)
                 .avatar(StrUtil.trimToNull(requestParam.getAvatar()))
                 .build();
@@ -141,7 +152,8 @@ public class UserServiceImpl implements UserService {
         if (requestParam.getPassword() != null) {
             String password = StrUtil.trimToNull(requestParam.getPassword());
             Assert.notBlank(password, () -> new ClientException("新密码不能为空"));
-            record.setPassword(password);
+            validatePasswordLength(password);
+            record.setPassword(PasswordHasher.encode(password));
         }
 
         userMapper.updateById(record);
@@ -182,6 +194,7 @@ public class UserServiceImpl implements UserService {
         String next = StrUtil.trimToNull(requestParam.getNewPassword());
         Assert.notBlank(current, () -> new ClientException("当前密码不能为空"));
         Assert.notBlank(next, () -> new ClientException("新密码不能为空"));
+        validatePasswordLength(next);
 
         LoginUser loginUser = UserContext.requireUser();
         UserDO record = userMapper.selectOne(
@@ -191,10 +204,10 @@ public class UserServiceImpl implements UserService {
         );
         Assert.notNull(record, () -> new ClientException("用户不存在"));
         UserVO before = toVO(record);
-        if (!passwordMatches(current, record.getPassword())) {
+        if (!PasswordHasher.matches(current, record.getPassword())) {
             throw new ClientException("当前密码不正确");
         }
-        record.setPassword(next);
+        record.setPassword(PasswordHasher.encode(next));
         userMapper.updateById(record);
         bizChangeLogContext.put(loginUser.getUserId(), before, toVO(userMapper.selectById(loginUser.getUserId())));
     }
@@ -241,11 +254,16 @@ public class UserServiceImpl implements UserService {
         throw new ClientException("角色类型不合法");
     }
 
-    private boolean passwordMatches(String input, String stored) {
-        if (stored == null) {
-            return input == null;
+    private void validateUsernameLength(String username) {
+        if (username.length() < MIN_USERNAME_LENGTH || username.length() > MAX_USERNAME_LENGTH) {
+            throw new ClientException("用户名长度必须在 2-64 个字符之间");
         }
-        return stored.equals(input);
+    }
+
+    private void validatePasswordLength(String password) {
+        if (password.length() < MIN_PASSWORD_LENGTH || password.length() > MAX_PASSWORD_LENGTH) {
+            throw new ClientException("密码长度必须在 6-64 个字符之间");
+        }
     }
 
     private UserVO toVO(UserDO record) {

@@ -4,7 +4,13 @@ import { create } from "zustand";
 import { toast } from "sonner";
 
 import type { User } from "@/types";
-import { getCurrentUser, login as loginRequest, logout as logoutRequest } from "@/services/authService";
+import {
+  getCurrentUser,
+  login as loginRequest,
+  logout as logoutRequest,
+  register as registerRequest
+} from "@/services/authService";
+import type { LoginResponse } from "@/services/authService";
 import { setAuthToken } from "@/services/api";
 import { useChatStore } from "@/stores/chatStore";
 import { storage } from "@/utils/storage";
@@ -15,12 +21,45 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
+  register: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   fetchCurrentUser: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set, get) => {
+  // 登录与注册共用的"采纳会话"：落 token、清会话态、拉当前用户
+  const adoptSession = (data: LoginResponse, fallbackUsername: string) => {
+    const user = {
+      userId: data.userId,
+      username: data.username || fallbackUsername,
+      role: data.role,
+      token: data.token,
+      avatar: data.avatar
+    };
+    storage.setToken(user.token);
+    storage.setUser(user);
+    setAuthToken(user.token);
+    set({ user, token: user.token, isAuthenticated: true });
+    get().fetchCurrentUser().catch(() => null);
+    useChatStore.getState().cancelGeneration();
+    useChatStore.setState({
+      sessions: [],
+      currentSessionId: null,
+      messages: [],
+      isLoading: false,
+      isStreaming: false,
+      isCreatingNew: true,
+      deepThinkingEnabled: false,
+      thinkingStartAt: null,
+      streamTaskId: null,
+      streamAbort: null,
+      streamingMessageId: null,
+      cancelRequested: false
+    });
+  };
+
+  return {
   user: storage.getUser(),
   token: storage.getToken(),
   isAuthenticated: Boolean(storage.getToken()),
@@ -29,36 +68,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true });
     try {
       const data = await loginRequest(username, password);
-      const user = {
-        userId: data.userId,
-        username: data.username || username,
-        role: data.role,
-        token: data.token,
-        avatar: data.avatar
-      };
-      storage.setToken(user.token);
-      storage.setUser(user);
-      setAuthToken(user.token);
-      set({ user, token: user.token, isAuthenticated: true });
-      get().fetchCurrentUser().catch(() => null);
-      useChatStore.getState().cancelGeneration();
-      useChatStore.setState({
-        sessions: [],
-        currentSessionId: null,
-        messages: [],
-        isLoading: false,
-        isStreaming: false,
-        isCreatingNew: true,
-        deepThinkingEnabled: false,
-        thinkingStartAt: null,
-        streamTaskId: null,
-        streamAbort: null,
-        streamingMessageId: null,
-        cancelRequested: false
-      });
+      adoptSession(data, username);
       toast.success("登录成功");
     } catch (error) {
       toast.error((error as Error).message || "登录失败");
+      throw error;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+  register: async (username, password) => {
+    set({ isLoading: true });
+    try {
+      const data = await registerRequest(username, password);
+      adoptSession(data, username);
+      toast.success("注册成功");
+    } catch (error) {
+      toast.error((error as Error).message || "注册失败");
       throw error;
     } finally {
       set({ isLoading: false });
@@ -111,4 +137,5 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return;
     }
   }
-}));
+  };
+});

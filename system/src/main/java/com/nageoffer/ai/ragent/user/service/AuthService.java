@@ -18,11 +18,17 @@
 package com.nageoffer.ai.ragent.user.service;
 
 import com.nageoffer.ai.ragent.user.controller.request.LoginRequest;
+import com.nageoffer.ai.ragent.user.controller.request.RegisterRequest;
 import com.nageoffer.ai.ragent.user.controller.vo.LoginVO;
 
 public interface AuthService {
 
     LoginVO login(LoginRequest requestParam);
+
+    /**
+     * 自助注册，注册成功后自动登录
+     */
+    LoginVO register(RegisterRequest requestParam);
 
     void logout();
 }
