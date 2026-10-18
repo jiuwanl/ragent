@@ -50,6 +50,9 @@ public class McpClientToolExecutor implements McpToolExecutor {
     public CallToolResult execute(Map<String, Object> parameters, Map<String, Object> meta) {
         long startMs = System.currentTimeMillis();
         Map<String, Object> args = parameters != null ? parameters : Map.of();
+        // 入参里有收件人姓名、手机号、地址这类明文，服务端是逐个打码才回的，这里不能顺手又原样写进 INFO
+        // 形状（带了哪些参数、谁在调）足够定位问题，要看值就开 DEBUG
+        log.debug("MCP 远程工具调用入参, toolId={}, params={}", toolDefinition.name(), args);
         try {
             CallToolResult result = mcpClient.callTool(buildRequest(args, meta));
             log.info("MCP 远程工具调用完成, toolId={}, paramKeys={}, userId={}, contentSize={}, elapsed={}ms",

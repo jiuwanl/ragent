@@ -68,10 +68,13 @@ class BitSchemaScriptTest {
                 assertFalse(script.toUpperCase().contains(type), "建表脚本不允许出现 " + type.strip()));
     }
 
+    /**
+     * 断言按 \n 找建表语句，Windows 检出的 CRLF 会让 10 张表全部漏判；统一归一成 \n 再比
+     */
     private String read() {
         try {
             return new String(new ClassPathResource("db/bit-schema.sql").getInputStream().readAllBytes(),
-                    StandardCharsets.UTF_8);
+                    StandardCharsets.UTF_8).replace("\r\n", "\n");
         } catch (IOException e) {
             throw new IllegalStateException("读不到建表脚本", e);
         }

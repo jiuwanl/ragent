@@ -371,19 +371,22 @@ class AgentTraceScenarioTest {
      * 等确认：人类等多久都不该变成工具耗时，故一个工具节点都不建
      */
     @Test
-    void shouldEmitNoToolSpanWhileAwaitingConfirmation() {
+    void shouldEmitNoToolSpanWhileAwaitingConfirmation() throws InterruptedException {
         ToolUseBlock pending = call("call-1", SUBMIT).use();
 
         start(List.of(pending), Flux.just(new RequireUserConfirmEvent(REPLY_ID, List.of(pending))));
         clock.advance(300_000);
+        // 批 span 正常路径的起止是墙上时间，断「同一毫秒收口」会在边界上随机炸；
+        // 真睡出一段等待窗再收 root，批收口在窗前还是窗后就由先后关系确定，不再看毫秒运气
+        Thread.sleep(30);
         endRoot();
 
         assertThat(batchSpan().getAttributes().get(RagentAttributes.TOOL_BATCH_OUTCOME))
                 .isEqualTo(RagentAttributes.OUTCOME_AWAITING);
         assertThat(batchSpan().getAttributes().get(AgentTraceAttributes.LEVEL))
                 .isEqualTo(AgentTraceAttributes.LEVEL_WARNING);
-        // 批 span 也不许跨等待：它在事件落完那刻就收了，之后那五分钟与本次运行的耗时无关
-        assertThat(durationMillis(batchSpan())).isZero();
+        // 批 span 不许跨等待：它在事件落完那刻就收了，root 收口前的这段窗属于等确认，与本批耗时无关
+        assertThat(batchSpan().getEndEpochNanos()).isLessThan(span(ROOT_SPAN).getEndEpochNanos());
 
         assertSpanNames(ROOT_SPAN, BATCH_SPAN);
         assertInvariants(List.of(), List.of("call-1"));

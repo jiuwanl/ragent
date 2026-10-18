@@ -184,7 +184,8 @@ public class AgentToolCatalog {
      * MCP 工具的生效值，Bridge 与指纹都读这里
      *
      * @param description  意图树描述为空时回落服务端描述
-     * @param needsConfirm 意图树勾选，或服务端未明确声明 readOnlyHint=true
+     * @param needsConfirm 意图树勾选，或服务端显式声明 readOnlyHint=false（自报写工具一律拦下）；
+     *                     未声明 readOnlyHint 的听意图树，否则没勾确认的查询工具会集体弹确认卡
      */
     public record McpToolBinding(
             String toolId,
@@ -206,7 +207,7 @@ public class AgentToolCatalog {
             return new McpToolBinding(toolId, displayName, effectiveDescription,
                     toInputSchema(definition.inputSchema()),
                     Boolean.TRUE.equals(readOnlyHint),
-                    confirmConfigured || !Boolean.TRUE.equals(readOnlyHint),
+                    confirmConfigured || Boolean.FALSE.equals(readOnlyHint),
                     executor);
         }
 
