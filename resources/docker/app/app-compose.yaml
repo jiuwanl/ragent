@@ -1,0 +1,92 @@
+# Ragent 应用层叠加（不复制中间件定义，防双份漂移）
+# 固定用法（两个 -f，local 在前）：
+#   docker compose -f resources/docker/local/local-dev.compose.yaml -f resources/docker/app/app-compose.yaml up -d --build
+#   docker compose -f resources/docker/local/local-dev.compose.yaml -f resources/docker/app/app-compose.yaml down
+#
+# 内存预算：中间件 2048M + ES 1024M + backend 1536M + nginx 64M ≈ 4.7G 上限
+# （maven/node 构建瞬时再加 1~1.5G，不同时构建两镜像）
+# API Key 经 env_file 注入（~/.ragent-keys.env），绝不进镜像层或仓库
+
+services:
+  # 最大坑：local-dev 的 brokerIP1=127.0.0.1 是给宿主机 JVM 用的；
+  # 容器内 backend 若沿用会连到 broker 容器自己的 127.0.0.1 导致事务消息失败，
+  # 必须把 brokerIP1 覆盖为服务名 rmqbroker
+  rmqbroker:
+    command:
+      - sh
+      - -c
+      - |
+        cat > /home/rocketmq/rocketmq-5.2.0/conf/broker.conf << EOF
+        brokerClusterName = DefaultCluster
+        brokerName = broker-a
+        brokerId = 0
+        deleteWhen = 04
+        fileReservedTime = 48
+        brokerRole = ASYNC_MASTER
+        flushDiskType = ASYNC_FLUSH
+        brokerIP1 = rmqbroker
+        timerMaxDelaySec = 31622400
+        autoCreateTopicEnable = true
+        EOF
+        sh mqbroker --enable-proxy \
+          -c /home/rocketmq/rocketmq-5.2.0/conf/broker.conf
+
+  backend:
+    build:
+      # context 相对本 compose 文件目录（resources/docker/app），三级上跳才是仓库根
+      context: ../../..
+      dockerfile: resources/docker/app/backend.Dockerfile
+    container_name: ragent-backend
+    ports:
+      - "9090:9090"
+    env_file:
+      # MIMO_API_KEY / BAILIAN_API_KEY 等，容器化部署的机器上自行放置该文件
+      - ~/.ragent-keys.env
+    environment:
+      # 宿主机地址（127.0.0.1:5432 等）在容器命名空间里指向容器自身，全部改服务名
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ragent?client_encoding=UTF8
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: 123456
+      ROCKETMQ_NAME_SERVER: rmqnamesrv:9876
+      RAG_STORAGE_S3_ENDPOINT: http://rustfs:9000
+      RAG_STORAGE_S3_ACCESS_KEY: rustfsadmin
+      RAG_STORAGE_S3_SECRET_KEY: rustfsadmin
+      RAG_KEYWORD_ES_URIS: http://elasticsearch:9200
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rmqnamesrv:
+        condition: service_healthy
+      rmqbroker:
+        condition: service_started
+      rustfs:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 1536m
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9090/api/ragent/actuator/health | grep -q UP"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      # 启动要过全上下文 + ES 建索引 + MCP 连接超时，给足首启时间
+      start_period: 120s
+
+  frontend:
+    build:
+      context: ../../..
+      dockerfile: resources/docker/app/frontend.Dockerfile
+    container_name: ragent-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 64m

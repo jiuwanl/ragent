@@ -1,0 +1,22 @@
+# 构建上下文瘦身：docker 只 COPY 仓库内显式列出的路径，这里挡掉无关大目录
+.git
+.github
+.idea
+*.iml
+
+# 构建产物与依赖目录，绝不能进上下据（镜像内重新生成）
+**/target
+frontend/node_modules
+frontend/dist
+frontend/@
+
+# 文档与本地素材（镜像不需要）
+docs
+assets
+*.md
+
+# 其他本地栈（graphrag/langfuse/lightweight 等不参与应用镜像）
+resources/regression
+resources/docker/graphrag
+resources/docker/langfuse
+resources/docker/lightweight

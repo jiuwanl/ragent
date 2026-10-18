@@ -99,6 +99,24 @@ taskkill //PID <pid> //F
 docker compose -f resources/docker/local/local-dev.compose.yaml down
 ```
 
+### 容器化一键部署（应用层镜像，可选）
+
+不想在宿主机装 JDK/Node 时，后端与前端也能进容器——中间件定义仍只有一份（叠加文件，防双份漂移）：
+
+```bash
+# 构建镜像 + 起全部 8 容器（首次 5~8 分钟，之后秒级）
+docker compose -f resources/docker/local/local-dev.compose.yaml -f resources/docker/app/app-compose.yaml up -d --build
+
+# 停止（数据卷保留，重起数据不丢；加 -v 才清空）
+docker compose -f resources/docker/local/local-dev.compose.yaml -f resources/docker/app/app-compose.yaml down
+```
+
+- 入口：前端 `http://localhost:8080`（nginx 托管 SPA 并反代 `/api`，SSE 已关缓冲）；后端仍可直连 `:9090`
+- 前置：`~/.ragent-keys.env` 存放 API Key（`MIMO_API_KEY=...` 换行 `BAILIAN_API_KEY=...`），该文件经 env_file 注入容器，不进镜像与仓库
+- 叠加层已把 RocketMQ broker 的 `brokerIP1` 覆盖为服务名 `rmqbroker`（local-dev 里的 `127.0.0.1` 是给宿主机 JVM 用的，容器内沿用会导致事务消息连到自己）
+- 内存预算：中间件 2048M + ES 1024M + backend 1536M + nginx 64M ≈ 4.7G；maven/node 构建瞬时再加 1~1.5G
+- MCP demo 服务（:9099）不在该栈内，后端启动日志出现「连接 MCP Server [default] 失败，跳过工具注册」属预期，不影响问答主链路
+
 ### 测试（分层执行）
 
 测试用 JUnit `@Tag` 分三层，默认层在**不开任何中间件**的干净环境即可全绿：
