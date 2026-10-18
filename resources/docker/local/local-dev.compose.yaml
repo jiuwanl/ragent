@@ -1,0 +1,144 @@
+# Ragent 本地最小化开发栈（16GB 内存机器适用）
+# 仅包含启动 fail-fast 的四个必需服务：PostgreSQL(pgvector) + Redis + RocketMQ + rustfs(S3)
+# Milvus/ES/Neo4j/LangFuse 默认配置已关闭，无需启动
+#
+# 用法：
+#   docker compose -f resources/docker/local/local-dev.compose.yaml up -d
+#   docker compose -f resources/docker/local/local-dev.compose.yaml down        # 停止（保留数据）
+#   docker compose -f resources/docker/local/local-dev.compose.yaml down -v    # 停止并清空数据
+#
+# 配置与 bootstrap/src/main/resources/application.yaml 对齐：
+#   - PG: postgres/postgres@127.0.0.1:5432/ragent
+#   - Redis: 127.0.0.1:6379 密码 123456
+#   - RocketMQ: 127.0.0.1:9876（brokerIP1=127.0.0.1 供宿主机 JVM 连接）
+#   - S3: http://localhost:9000 rustfsadmin/rustfsadmin
+
+name: ragent-local
+
+services:
+  postgres:
+    container_name: ragent-postgres
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ragent
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      # 首次初始化（数据卷为空时）按字母序执行 SQL，自动建 32 张表 + 种子数据
+      - ../../database/schema_pg.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../../database/init_data_pg.sql:/docker-entrypoint-initdb.d/02-init.sql:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ragent"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  redis:
+    container_name: ragent-redis
+    image: redis:7-alpine
+    command: redis-server --requirepass 123456 --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a 123456 ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  rmqnamesrv:
+    image: apache/rocketmq:5.2.0
+    container_name: ragent-rmqnamesrv
+    ports:
+      - "9876:9876"
+    environment:
+      JAVA_OPT_EXT: "-Xms128m -Xmx256m"
+    command: sh mqnamesrv
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "grep -q 'The Name Server boot success' /home/rocketmq/logs/rocketmqlogs/namesrv.log || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  rmqbroker:
+    image: apache/rocketmq:5.2.0
+    container_name: ragent-rmqbroker
+    ports:
+      - "10911:10911"
+      - "10909:10909"
+    environment:
+      NAMESRV_ADDR: "rmqnamesrv:9876"
+      JAVA_OPT_EXT: "-Xms256m -Xmx512m"
+    depends_on:
+      rmqnamesrv:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        cat > /home/rocketmq/rocketmq-5.2.0/conf/broker.conf << EOF
+        brokerClusterName = DefaultCluster
+        brokerName = broker-a
+        brokerId = 0
+        deleteWhen = 04
+        fileReservedTime = 48
+        brokerRole = ASYNC_MASTER
+        flushDiskType = ASYNC_FLUSH
+        brokerIP1 = 127.0.0.1
+        timerMaxDelaySec = 31622400
+        autoCreateTopicEnable = true
+        EOF
+        sh mqbroker --enable-proxy \
+          -c /home/rocketmq/rocketmq-5.2.0/conf/broker.conf
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  rustfs:
+    container_name: ragent-rustfs
+    image: rustfs/rustfs:1.0.0-alpha.72
+    command:
+      - "--address"
+      - ":9000"
+      - "--console-enable"
+      - "--access-key"
+      - "rustfsadmin"
+      - "--secret-key"
+      - "rustfsadmin"
+      - "/data"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - rustfs-data:/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+volumes:
+  pg-data:
+  redis-data:
+  rustfs-data:
