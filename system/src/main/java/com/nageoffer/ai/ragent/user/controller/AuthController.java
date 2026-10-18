@@ -23,6 +23,7 @@ import com.nageoffer.ai.ragent.user.controller.vo.LoginVO;
 import com.nageoffer.ai.ragent.framework.convention.Result;
 import com.nageoffer.ai.ragent.framework.web.Results;
 import com.nageoffer.ai.ragent.user.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -42,7 +43,7 @@ public class AuthController {
      * 用户登录接口
      */
     @PostMapping("/auth/login")
-    public Result<LoginVO> login(@RequestBody LoginRequest requestParam) {
+    public Result<LoginVO> login(@Valid @RequestBody LoginRequest requestParam) {
         return Results.success(authService.login(requestParam));
     }
 
@@ -50,7 +51,7 @@ public class AuthController {
      * 用户自助注册接口，注册成功后自动登录
      */
     @PostMapping("/auth/register")
-    public Result<LoginVO> register(@RequestBody RegisterRequest requestParam) {
+    public Result<LoginVO> register(@Valid @RequestBody RegisterRequest requestParam) {
         return Results.success(authService.register(requestParam));
     }
 

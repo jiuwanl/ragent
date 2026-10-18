@@ -27,6 +27,7 @@ import com.nageoffer.ai.ragent.user.controller.vo.LoginVO;
 import com.nageoffer.ai.ragent.user.dao.entity.UserDO;
 import com.nageoffer.ai.ragent.user.dao.mapper.UserMapper;
 import com.nageoffer.ai.ragent.user.enums.UserRole;
+import com.nageoffer.ai.ragent.user.support.LoginBruteForceGuard;
 import com.nageoffer.ai.ragent.user.support.PasswordHasher;
 import com.nageoffer.ai.ragent.framework.exception.ClientException;
 import com.nageoffer.ai.ragent.user.service.AuthService;
@@ -42,6 +43,7 @@ public class AuthServiceImpl implements AuthService {
 
     private final UserMapper userMapper;
     private final UserService userService;
+    private final LoginBruteForceGuard loginBruteForceGuard;
 
     @Override
     public LoginVO login(LoginRequest requestParam) {
@@ -50,13 +52,18 @@ public class AuthServiceImpl implements AuthService {
         if (StrUtil.isBlank(username) || StrUtil.isBlank(password)) {
             throw new ClientException("用户名或密码不能为空");
         }
+        // 锁定期间凭据正确也拒绝，检查必须在密码比对之前
+        loginBruteForceGuard.checkLoginAllowed(username);
         UserDO user = findByUsername(username);
         if (user == null || !PasswordHasher.matches(password, user.getPassword())) {
+            // 用户名不存在与密码错误走同一分支记账：计数对幽灵账号同样累计，枚举不出账号是否存在
+            loginBruteForceGuard.recordLoginFailure(username);
             throw new ClientException("用户名或密码错误");
         }
         if (user.getId() == null) {
             throw new ClientException("用户信息异常");
         }
+        loginBruteForceGuard.recordLoginSuccess(username);
         String loginId = user.getId().toString();
         StpUtil.login(loginId);
         upgradeLegacyPassword(user, password);
@@ -74,12 +81,20 @@ public class AuthServiceImpl implements AuthService {
         if (StrUtil.isBlank(username) || StrUtil.isBlank(password)) {
             throw new ClientException("用户名或密码不能为空");
         }
+        // 只查 IP 锁：用户名维度的锁不该连坐到注册别的用户名
+        loginBruteForceGuard.checkRegisterAllowed();
         UserCreateRequest createParam = new UserCreateRequest();
         createParam.setUsername(username);
         createParam.setPassword(password);
         // 注册入口固定普通用户，客户端无法指定角色
         createParam.setRole(UserRole.USER.getCode());
-        userService.create(createParam);
+        try {
+            userService.create(createParam);
+        } catch (Exception ex) {
+            // 用户名已存在等失败也记 IP 账，防对注册面做批量探测
+            loginBruteForceGuard.recordRegisterFailure();
+            throw ex;
+        }
         // 注册即登录：复用登录链路完成凭证校验与会话签发
         LoginRequest loginParam = new LoginRequest();
         loginParam.setUsername(username);

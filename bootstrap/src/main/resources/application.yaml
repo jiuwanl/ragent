@@ -38,6 +38,27 @@ ragent:
   demo-mode: false
   eval:
     enabled: true
+  auth:
+    brute-force:
+      enabled: true                # 登录防爆破总开关，false 短路（Redis 异常时的逃生阀）
+      window-seconds: 300          # 失败计数窗口
+      lock-seconds: 900            # 锁定时长，锁定期间凭据正确也拒
+      max-failures-per-user-ip: 5  # 用户名+IP 窗口内失败上限，达到即锁该用户名
+      max-failures-per-ip: 20      # 单 IP 窗口内失败上限（跨用户名），防扫号
+  web:
+    cors:
+      # allowCredentials(true) 下不许全开；vite dev 代理透传 Origin:5173，本地端口必须在列
+      allowed-origin-patterns: http://localhost:5173,http://localhost:5174,http://localhost:8080
+
+# 健康检查：仅暴露 health（/api/ragent/actuator/health），详情 never 防组件信息外泄
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
 
 # Agent 执行架构（ragent.engine.type=agent 时生效）；单模型无 fallback，供应商可用性由 provider 侧保障
 agent:
