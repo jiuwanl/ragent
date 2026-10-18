@@ -1,0 +1,99 @@
+# 三层门禁：格式与默认层单测（无需中间件）｜真实 Redis 集成层｜前端 lint+类型+构建
+# 默认层在干净环境全绿是硬约束：任何测试要连真实环境，必须打 live/integration 标签进对应 job
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (spotless + verify)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      # 必须先于 compile：pom 把 spotless:apply 绑在编译期，先跑 verify 会把格式问题当场洗绿
+      - name: Spotless 格式检查
+        run: ./mvnw -B spotless:check
+
+      - name: 默认层单测 + 打包 + 覆盖率
+        run: ./mvnw -B verify
+
+      - name: 上传覆盖率报告
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: "*/target/site/jacoco/"
+          if-no-files-found: warn
+          retention-days: 14
+
+  backend-integration:
+    name: Backend (integration, real Redis)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      # 两个 -D 必须同时给：默认 excludedGroups 含 integration，只加 groups 不会生效
+      - name: 集成层单测（真实 Redis）
+        run: ./mvnw -B test -Dgroups=integration -DexcludedGroups=live
+        env:
+          TEST_REDIS_URL: redis://127.0.0.1:6379
+
+  frontend:
+    name: Frontend (lint + tsc + build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: ESLint（max-warnings 0）
+        run: npm run lint
+
+      - name: TypeScript 类型检查
+        run: npx tsc -b
+
+      - name: 生产构建
+        run: npm run build
