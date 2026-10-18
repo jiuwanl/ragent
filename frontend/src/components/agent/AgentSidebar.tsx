@@ -1,12 +1,10 @@
 import * as React from "react";
 import {
-  BookOpen,
   Check,
   LogOut,
   MessageSquare,
   MoreHorizontal,
   Pencil,
-  PlayCircle,
   Plus,
   Search,
   Settings,
@@ -400,18 +398,6 @@ export function AgentSidebar() {
             sideOffset={8}
             className="w-48 rounded-xl p-1"
           >
-            <DropdownMenuItem asChild className="rounded-lg px-3 py-2 text-[13px]">
-              <a href="https://nageoffer.com/ragent" target="_blank" rel="noreferrer">
-                <BookOpen className="mr-2 h-4 w-4" />
-                官方文档
-              </a>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild className="rounded-lg px-3 py-2 text-[13px]">
-              <a href="https://space.bilibili.com/352177376" target="_blank" rel="noreferrer">
-                <PlayCircle className="mr-2 h-4 w-4" />
-                哔哩哔哩
-              </a>
-            </DropdownMenuItem>
             <DropdownMenuItem
               className="rounded-lg px-3 py-2 text-[13px] text-rose-600 focus:text-rose-600 data-[highlighted]:text-rose-600"
               onClick={() => logout()}

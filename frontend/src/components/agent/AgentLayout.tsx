@@ -1,9 +1,7 @@
 import * as React from "react";
-import { Github } from "lucide-react";
 
 import { AgentRawLog } from "@/components/agent/AgentRawLog";
 import { AgentSidebar } from "@/components/agent/AgentSidebar";
-import { useGitHubStars } from "@/hooks/useGitHubStars";
 import { getAgentMeta } from "@/services/agentService";
 import type { AgentEngineMeta } from "@/types/agent";
 
@@ -42,10 +40,6 @@ interface AgentHeaderProps {
 }
 
 function AgentHeader({ meta, rawOpen, onToggleRaw }: AgentHeaderProps) {
-  const starCount = useGitHubStars();
-
-  const starLabel = starCount === null ? null : starCount.toLocaleString("en-US");
-
   const badgeName =
     meta.status === "online" ? meta.meta.framework : meta.status === "probing" ? "探测中" : "离线";
 
@@ -73,17 +67,6 @@ function AgentHeader({ meta, rawOpen, onToggleRaw }: AgentHeaderProps) {
       </div>
 
       <div className="agent-header-right">
-        <a
-          href="https://github.com/nageoffer/ragent"
-          target="_blank"
-          rel="noreferrer"
-          className="agent-head-btn"
-          data-github="true"
-          aria-label="打开 GitHub 仓库"
-        >
-          <Github className="h-3.5 w-3.5" strokeWidth={1.5} />
-          {starLabel ? <span className="agent-btn-glyph">{starLabel}</span> : null}
-        </a>
         <button
           type="button"
           className="agent-head-btn"
