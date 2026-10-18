@@ -6,7 +6,7 @@
 
 [![CI](https://github.com/jiuwanl/ragent/actions/workflows/ci.yml/badge.svg)](https://github.com/jiuwanl/ragent/actions/workflows/ci.yml)
 
-本地部署的 Agentic RAG 知识库平台：文档入库（解析 → 分块 → 向量化）→ 检索（默认向量单通道；关键词 / 图谱 / 联网为可选扩展）→ 带引用的智能问答，附 Agent ReAct 执行引擎与完整管理后台。前后端分离，普通开发机即可跑通。
+本地部署的 Agentic RAG 知识库平台：文档入库（解析 → 分块 → 向量化）→ 混合检索（默认启用向量 + 关键词（ES/ik）双通道并 RRF 融合精排；图谱 / 联网为可选扩展）→ 带引用的智能问答，附 Agent ReAct 执行引擎与完整管理后台。前后端分离，普通开发机即可跑通。
 
 > Fork 改造自 [nageoffer/ragent](https://github.com/nageoffer/ragent)（Apache-2.0），已移除原仓库推广内容，补充自助注册（BCrypt 密码）与[本地使用手册](docs/LOCAL-USAGE.md)。
 

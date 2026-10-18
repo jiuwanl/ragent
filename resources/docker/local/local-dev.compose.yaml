@@ -1,6 +1,6 @@
 # Ragent 本地最小化开发栈（16GB 内存机器适用）
-# 仅包含启动 fail-fast 的四个必需服务：PostgreSQL(pgvector) + Redis + RocketMQ + rustfs(S3)
-# Milvus/ES/Neo4j/LangFuse 默认配置已关闭，无需启动
+# 仅包含启动 fail-fast 的五个必需服务：PostgreSQL(pgvector) + Redis + RocketMQ + rustfs(S3) + Elasticsearch(关键词通道)
+# Milvus/Neo4j/LangFuse 默认配置已关闭，无需启动
 #
 # 用法：
 #   docker compose -f resources/docker/local/local-dev.compose.yaml up -d
@@ -12,6 +12,7 @@
 #   - Redis: 127.0.0.1:6379 密码 123456
 #   - RocketMQ: 127.0.0.1:9876（brokerIP1=127.0.0.1 供宿主机 JVM 连接）
 #   - S3: http://localhost:9000 rustfsadmin/rustfsadmin
+#   - ES: http://127.0.0.1:9200（无认证，共享索引 rag_keyword_store，首次启动自动装 IK 插件）
 
 name: ragent-local
 
@@ -138,7 +139,33 @@ services:
         limits:
           memory: 256M
 
+  elasticsearch:
+    container_name: ragent-elasticsearch
+    image: elasticsearch:8.17.0
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    # 镜像不带 IK 分词，首次启动检测到缺失即装（ik_max_word/ik_smart 为配置默认分词器）
+    command: bash -c "[ -d plugins/analysis-ik ] || bin/elasticsearch-plugin install --batch https://get.infini.cloud/elasticsearch/analysis-ik/8.17.0; bin/elasticsearch"
+    restart: unless-stopped
+    healthcheck:
+      # wait_for_status=yellow：单节点 yellow 即就绪，red（主分片未分配）不算
+      test: ["CMD-SHELL", "curl -fsS 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=1s' >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+
 volumes:
   pg-data:
   redis-data:
   rustfs-data:
+  es-data:

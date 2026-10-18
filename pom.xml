@@ -16,6 +16,9 @@
         <java.version>17</java.version>
         <spring-boot.version>4.1.0</spring-boot.version>
         <milvus-sdk.version>2.6.6</milvus-sdk.version>
+        <!-- 服务端固定 elasticsearch:8.17.0（IK 插件同版本），客户端须对齐 8.17.x：
+             Boot 4.1 默认管理的 9.4.2 会带 Accept: compatible-with=9，ES 8.17 直接 400 拒收 -->
+        <elasticsearch-java.version>8.17.0</elasticsearch-java.version>
         <tika.version>3.2.3</tika.version>
         <hutool-all.version>5.8.37</hutool-all.version>
         <mybatis-plus.version>3.5.17</mybatis-plus.version>
@@ -100,6 +103,12 @@
                 <groupId>io.milvus</groupId>
                 <artifactId>milvus-sdk-java</artifactId>
                 <version>${milvus-sdk.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>co.elastic.clients</groupId>
+                <artifactId>elasticsearch-java</artifactId>
+                <version>${elasticsearch-java.version}</version>
             </dependency>
 
             <dependency>

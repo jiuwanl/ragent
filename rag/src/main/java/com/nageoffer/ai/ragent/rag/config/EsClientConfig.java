@@ -19,9 +19,11 @@ package com.nageoffer.ai.ragent.rag.config;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
-import co.elastic.clients.transport.rest5_client.Rest5ClientTransport;
-import co.elastic.clients.transport.rest5_client.low_level.Rest5Client;
+import co.elastic.clients.transport.rest_client.RestClientTransport;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.http.HttpHost;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -33,6 +35,10 @@ import java.util.Arrays;
 
 /**
  * Elasticsearch 客户端配置
+ * <p>
+ * 传输层用 HttpClient4 的 {@link RestClientTransport}（rest5 包是 9.x 客户端专属）；
+ * 客户端 8.17.x 与服务端 elasticsearch:8.17.0 同 minor 对齐——9.x 客户端会携带
+ * {@code Accept: compatible-with=9}，8.x 服务端直接 400 拒收
  */
 @Slf4j
 @Configuration
@@ -43,14 +49,15 @@ public class EsClientConfig {
     @Bean
     public ElasticsearchClient elasticsearchClient(KeywordProperties keywordProperties) {
         String uris = keywordProperties.getEs().getUris();
-        URI[] hosts = Arrays.stream(StringUtils.commaDelimitedListToStringArray(uris))
+        HttpHost[] hosts = Arrays.stream(StringUtils.commaDelimitedListToStringArray(uris))
                 .map(String::trim)
                 .filter(StringUtils::hasText)
                 .map(URI::create)
-                .toArray(URI[]::new);
+                .map(uri -> new HttpHost(uri.getHost(), uri.getPort(), uri.getScheme()))
+                .toArray(HttpHost[]::new);
 
-        Rest5Client restClient = Rest5Client.builder(hosts).build();
-        Rest5ClientTransport transport = new Rest5ClientTransport(restClient, new JacksonJsonpMapper());
+        RestClientBuilder restClient = RestClient.builder(hosts);
+        RestClientTransport transport = new RestClientTransport(restClient.build(), new JacksonJsonpMapper());
         log.info("Elasticsearch 关键词检索客户端已初始化, uris={}", uris);
         return new ElasticsearchClient(transport);
     }

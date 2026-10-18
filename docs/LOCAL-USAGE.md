@@ -36,10 +36,12 @@ Ragent 是一个本地部署的 Agentic RAG 知识库平台：文档入库（解
 | ragent-rmqnamesrv | apache/rocketmq:5.2.0 | 9876 | RocketMQ NameServer | 384M |
 | ragent-rmqbroker | apache/rocketmq:5.2.0 | 10911/10909 | RocketMQ Broker（分块任务可靠投递） | 768M |
 | ragent-rustfs | rustfs/rustfs | 9000/9001 | S3 对象存储（rustfsadmin/rustfsadmin） | 256M |
+| ragent-elasticsearch | elasticsearch:8.17.0 | 9200 | 关键词检索通道（共享索引 rag_keyword_store，首次启动自动装 IK 插件） | 1024M |
 
 - **首次启动**（数据卷为空时）自动按字母序执行 `resources/database/schema_pg.sql` + `init_data_pg.sql`：建 32 张表 + 种子数据（admin 账号）
-- **数据卷保留**：`down` 保留 pg-data / redis-data / rustfs-data；`down -v` 才清空
-- Milvus / ES / Neo4j / Langfuse 在配置里默认关闭，**无需启动**
+- **数据卷保留**：`down` 保留 pg-data / redis-data / rustfs-data / es-data；`down -v` 才清空
+- **ES 首次启动较慢**：要下载镜像（~650MB）并安装 IK 插件（重启后插件已在镜像层，秒起）
+- Milvus / Neo4j / Langfuse 在配置里默认关闭，**无需启动**
 
 ## 4. 模型与 API Key 分工
 
@@ -179,7 +181,7 @@ curl -s $BASE/user/me -H "Authorization: $TOKEN"
 | **登录被防爆破锁定** | 连续 5 次错密码（用户名+IP 维度）后 15 分钟内凭据正确也拒，提示「操作过于频繁，请稍后再试」 | 等 TTL 自动恢复；或手动解锁：`docker exec ragent-redis redis-cli -a 123456 --no-auth-warning del "auth:login:lock:u:<用户名>"`；临时逃生阀：配置 `ragent.auth.brute-force.enabled: false` 后重启后端 |
 | **残留 JVM** | 重启报 `Port 9090 was already in use` | `netstat -ano \| grep 9090` 找 PID → `taskkill //PID <pid> //F` |
 | **MinerU 未配置** | PDF 解析不可用 | `MINERU_API_KEY` 未配；md/txt/csv 正常，暂用这些格式 |
-| **混合检索默认关** | 本地开箱只有向量单通道 | ES（关键词）/ LightRAG（图谱）/ 联网搜索需额外基础设施，在 `rag.keyword.type` / `rag.graph.type` / `rag.search.channels` 开启 |
+| **ES 未 healthy 就起后端** | 启动直接失败：`ES 关键词共享索引创建失败`（关键词通道 fail-fast，与 PG/Redis 同口径） | 先 `docker compose ... up -d` 等 ragent-elasticsearch healthy 再起后端；图谱（LightRAG）/ 联网搜索仍默认关，在 `rag.graph.type` / `rag.search.channels` 开启 |
 | **MCP Server 未启动** | 启动日志 `连接 MCP Server [default] 失败` | 可选 demo 服务（天气/票务等），不影响主链路；需要时再单独启动 `mcp-server` 模块 |
 | **Trace / Langfuse 关闭** | 管理台无链路数据 | 默认关（省内存），需要可观测时再启用 |
 | **SaaS 类跳转** | 登录页提示"注册账号" | 本 fork 已内置注册（§6），不再依赖管理员初始化 |
@@ -194,7 +196,10 @@ curl -s $BASE/user/me -H "Authorization: $TOKEN"
 | 端到端文档问答 | ✅ | 提问命中库内文档，答案准确复述端口等细节，带引用 |
 | 知识库全链路 | ✅ | 建库 → 上传 → 分块入库 → 检索问答 |
 | 注册 + BCrypt 密码 | ✅ | `POST /auth/register` 注册即登录，密码 `$2a` 存储，老 admin 首登自动升级 |
-| MCP 工具 / 图谱 / 关键词 / 联网检索 | ⏸ 未启用 | 代码具备，基础设施未开（见 §8） |
+| 混合检索（向量 + 关键词双通道） | ✅ | 归因日志四件套：`启用的检索通道：[VectorSearch, KeywordSearch]` → `关键词检索完成，命中 1 库 1 条` → `融合池按通道: 向量=1 关键词=1` → `Rerank 输入/输出按通道 向量=1 关键词=1`（精排 0.98）；回填对账 ES `_count`=1 与 PG enabled chunk=1 一致；kill ES 后关键词通道隔离失败、纯向量通道照常出答案 |
+| 关键词通道 fail-fast | ✅ | ES 不可达时后端启动即拒（`ES 关键词共享索引创建失败`），与 PG/Redis 同口径 |
+| MCP 工具挂载 + 真实调用 | ✅ | mcp-server（ragent_bit 库，23 工具）启动后端日志 `返回 23 个工具`；意图树挂载 `current_date` 后 `/agent/v1/meta` capabilities 含 `mcp-tools`；Agent 对话真实触发 pending→running→done，返回当前日期 |
+| 图谱 / 联网检索 | ⏸ 未启用 | 需 LightRAG / YDC 账号，见 §8 |
 | PDF 解析（MinerU） | ⏸ 未配 Key | — |
 
 ## 10. 常用入口速查
@@ -206,4 +211,5 @@ curl -s $BASE/user/me -H "Authorization: $TOKEN"
 | 管理后台 | http://localhost:5173/admin |
 | 后端 API | http://localhost:9090/api/ragent |
 | PostgreSQL | 127.0.0.1:5432（postgres/postgres，库 `ragent`） |
+| Elasticsearch | http://localhost:9200（关键词共享索引 `rag_keyword_store`） |
 | rustfs 控制台 | http://localhost:9001 |
