@@ -40,8 +40,17 @@ mvn clean install -DskipTests
 # Build specific module
 mvn clean install -pl rag -DskipTests
 
-# Run all tests
+# Run all tests (default layer: green on a clean machine, no middleware needed)
 mvn test
+
+# Run integration layer (needs local Redis; both -D properties are required together)
+mvn test -Dgroups=integration -DexcludedGroups=live
+
+# Run everything including live tests (needs full middleware stack + cloud API keys)
+mvn test -DexcludedGroups=
+
+# Coverage report (numbers only, no threshold gate)
+mvn verify   # → */target/site/jacoco/index.html
 
 # Run single test class
 mvn test -pl rag -Dtest=RetrievalEngineTest
@@ -158,7 +167,10 @@ Key configuration is in `bootstrap/src/main/resources/application.yaml`:
 
 ## Testing
 
-- Tests use Spring Boot Test with Mockito
+- Tests use Spring Boot Test with Mockito; execution is layered with JUnit `@Tag` (root pom wires surefire `groups`/`excludedGroups`):
+  - `live` = needs the full middleware stack + cloud API keys (10 unguarded `@SpringBootTest` classes + 3 env-guarded real-API tests) — excluded by default
+  - `integration` = needs only local Redis (reads `TEST_REDIS_URL`, default `redis://:123456@127.0.0.1:6379`) — excluded by default
+- Layer matrix: clean env / CI `mvn test` | everything `mvn test -DexcludedGroups=` | Redis layer `mvn test -Dgroups=integration -DexcludedGroups=live` (both properties must be passed together) | coverage `mvn verify`
 - Agent tests cover: tool catalog, MCP bridge, memory pipeline, skill lifecycle, trace enrichment
 - RAG tests cover: retrieval channels, chunking, ingestion pipeline, intent classification, prompt assembly
 - Frontend has no unit tests; quality gates are `npm run lint` (max-warnings 0) + `npm run build`; `frontend/TESTING.md` is a manual integration-debug guide

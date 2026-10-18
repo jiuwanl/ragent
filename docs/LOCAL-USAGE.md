@@ -95,6 +95,27 @@ taskkill //PID <pid> //F
 docker compose -f resources/docker/local/local-dev.compose.yaml down
 ```
 
+### 测试（分层执行）
+
+测试用 JUnit `@Tag` 分三层，默认层在**不开任何中间件**的干净环境即可全绿：
+
+```bash
+# ① 默认层（CI 同款）：排除 live / integration，无需中间件与云 Key
+mvn test
+
+# ② 本地全套：Docker 栈全起 + ~/.ragent-keys.env 已加载（含真实环境与真实 API 的 live 测试）
+mvn test -DexcludedGroups=
+
+# ③ 集成层：只需 ragent-redis 在跑（公平限流器排队语义 + Lua 原子 claim 的真实验证）
+mvn test -Dgroups=integration -DexcludedGroups=live   # 两个 -D 必须同时给
+
+# ④ 覆盖率（只出数不设红线）
+mvn verify   # 打开 rag/target/site/jacoco/index.html
+```
+
+- `live`（13 个）：10 个直连中间件的 `@SpringBootTest` + 3 个带 env 守卫的真实 API 测试（MinerU 解析 / You.com 联网通道 / youcom_search MCP 工具）
+- `integration`（1 个）：`FairDistributedRateLimiterRealRedisTest`，地址读 `TEST_REDIS_URL`（缺省 `redis://:123456@127.0.0.1:6379` 对齐 §3 compose 密码）
+
 ## 6. 账号
 
 - **种子管理员**：`admin` / `admin`（明文入库，首次登录成功后自动升级为 BCrypt 哈希，之后一直是哈希比对）
