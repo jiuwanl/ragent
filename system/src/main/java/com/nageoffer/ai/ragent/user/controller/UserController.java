@@ -30,6 +30,8 @@ import com.nageoffer.ai.ragent.framework.context.UserContext;
 import com.nageoffer.ai.ragent.framework.convention.Result;
 import com.nageoffer.ai.ragent.framework.web.Results;
 import com.nageoffer.ai.ragent.user.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -43,6 +45,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 用户控制器
  * 提供当前登录用户信息查询接口
  */
+@Tag(name = "用户管理", description = "当前用户信息与管理员侧用户 CRUD")
 @RestController
 @RequiredArgsConstructor
 public class UserController {
@@ -52,6 +55,7 @@ public class UserController {
     /**
      * 获取当前登录用户信息
      */
+    @Operation(summary = "当前登录用户信息", description = "从会话上下文读取，无需传参")
     @GetMapping("/user/me")
     public Result<CurrentUserVO> currentUser() {
         LoginUser user = UserContext.requireUser();

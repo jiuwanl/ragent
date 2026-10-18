@@ -46,6 +46,9 @@
         <groups/>
         <excludedGroups>live,integration</excludedGroups>
         <jacoco.version>0.8.15</jacoco.version>
+        <springdoc.version>3.1.1</springdoc.version>
+        <!-- 与 springdoc 3.1.1 传递的 swagger-core 同版本，控制器注解编译期对齐 -->
+        <swagger-annotations-jakarta.version>2.2.55</swagger-annotations-jakarta.version>
     </properties>
 
     <modules>
@@ -232,6 +235,19 @@
                 <artifactId>validation-api</artifactId>
                 <version>${javax-validation-api.version}</version>
             </dependency>
+
+            <!-- springdoc 自身 parent 对齐 spring-boot 4.1.0；仅 bootstrap 引入，版本在此总控 -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.swagger.core.v3</groupId>
+                <artifactId>swagger-annotations-jakarta</artifactId>
+                <version>${swagger-annotations-jakarta.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -256,6 +272,13 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+        </dependency>
+
+        <!-- 控制器 @Tag/@Operation 注解全模块可见；provided：运行期由 bootstrap 的 springdoc 提供，模块 jar 不打包 -->
+        <dependency>
+            <groupId>io.swagger.core.v3</groupId>
+            <artifactId>swagger-annotations-jakarta</artifactId>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 

@@ -25,6 +25,8 @@ import com.nageoffer.ai.ragent.knowledge.controller.vo.KnowledgeBaseVO;
 import com.nageoffer.ai.ragent.framework.convention.Result;
 import com.nageoffer.ai.ragent.framework.web.Results;
 import com.nageoffer.ai.ragent.knowledge.service.KnowledgeBaseService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,6 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 知识库控制器
  * 提供知识库的增删改查等基础操作接口
  */
+@Tag(name = "知识库", description = "知识库创建、查询与管理")
 @RestController
 @RequiredArgsConstructor
 public class KnowledgeBaseController {
@@ -47,6 +50,7 @@ public class KnowledgeBaseController {
     /**
      * 创建知识库
      */
+    @Operation(summary = "创建知识库", description = "collectionName 必填：小写字母数字，≤50 字符，决定向量存储的集合名")
     @PostMapping("/knowledge-base")
     public Result<String> createKnowledgeBase(@RequestBody KnowledgeBaseCreateRequest requestParam) {
         return Results.success(knowledgeBaseService.create(requestParam));
@@ -82,6 +86,7 @@ public class KnowledgeBaseController {
     /**
      * 分页查询知识库列表
      */
+    @Operation(summary = "分页查询知识库列表")
     @GetMapping("/knowledge-base")
     public Result<IPage<KnowledgeBaseVO>> pageQuery(KnowledgeBasePageRequest requestParam) {
         return Results.success(knowledgeBaseService.pageQuery(requestParam));

@@ -23,6 +23,8 @@ import com.nageoffer.ai.ragent.agent.controller.vo.AgentMetaVO;
 import com.nageoffer.ai.ragent.agent.tool.AgentToolCatalog;
 import com.nageoffer.ai.ragent.framework.convention.Result;
 import com.nageoffer.ai.ragent.framework.web.Results;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,6 +35,7 @@ import java.util.List;
 /**
  * Agent 引擎探活与身份，前端进入聊天页先拉一次点亮徽标，绝不带密钥
  */
+@Tag(name = "Agent 元信息", description = "引擎身份、能力清单与 MCP 工具探活")
 @RestController
 @ConditionalOnAgentEngine
 @RequiredArgsConstructor
@@ -41,6 +44,7 @@ public class AgentMetaController {
     private final AgentProperties agentProperties;
     private final AgentToolCatalog toolCatalog;
 
+    @Operation(summary = "Agent 引擎元信息", description = "capabilities 随实况增删；mcp-tools 仅在 MCP 工具挂载成功时出现")
     @GetMapping("/agent/v1/meta")
     public Result<AgentMetaVO> meta() {
         boolean mcpConfigured = toolCatalog.mcpToolCount() > 0;

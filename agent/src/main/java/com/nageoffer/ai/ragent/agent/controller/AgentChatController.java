@@ -24,6 +24,8 @@ import com.nageoffer.ai.ragent.agent.service.AgentChatService;
 import com.nageoffer.ai.ragent.framework.convention.Result;
 import com.nageoffer.ai.ragent.framework.validation.ChatQuestion;
 import com.nageoffer.ai.ragent.framework.web.Results;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -35,6 +37,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 /**
  * Agent 对话入口，仅 ragent.engine.type=agent 时注册；RAG v3 接口不受影响
  */
+@Tag(name = "Agent 问答（v2 ReAct）", description = "模型自主决策工具调用的流式对话与人工确认")
 @RestController
 @ConditionalOnAgentEngine
 @RequiredArgsConstructor
@@ -43,6 +46,7 @@ public class AgentChatController {
     private final AgentChatService agentChatService;
     private final AgentProperties agentProperties;
 
+    @Operation(summary = "SSE 流式 Agent 对话", description = "text/event-stream；事件流含思考、工具调用、知识引用与确认请求")
     @GetMapping(value = "/agent/v1/chat", produces = "text/event-stream;charset=UTF-8")
     public SseEmitter chat(@RequestParam @ChatQuestion String question,
                            @RequestParam(required = false) String conversationId) {
@@ -51,6 +55,7 @@ public class AgentChatController {
         return emitter;
     }
 
+    @Operation(summary = "人工确认写操作", description = "对事件流中的 RequireUserConfirm 回复批准/拒绝，续跑 ReAct 循环")
     @PostMapping(value = "/agent/v1/chat/confirm", produces = "text/event-stream;charset=UTF-8")
     public SseEmitter confirm(@RequestBody ConfirmRequest requestParam) {
         SseEmitter emitter = new SseEmitter(agentProperties.getSseTimeoutMs());

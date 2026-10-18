@@ -63,7 +63,7 @@ public class RagentWebMvcConfiguration implements WebMvcConfigurer {
         // 顺序介于登录与用户上下文之间，语义与原 SaTokenConfig 注册位置一致
         registry.addInterceptor(demoModeInterceptor)
                 .addPathPatterns("/**")
-                .excludePathPatterns("/auth/**", "/error", "/actuator/**")
+                .excludePathPatterns("/auth/**", "/error", "/actuator/**", "/v3/api-docs/**", "/swagger-ui/**")
                 .order(SaTokenConfig.ORDER_DEMO_MODE);
     }
 

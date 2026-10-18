@@ -26,6 +26,8 @@ import com.nageoffer.ai.ragent.knowledge.controller.request.KnowledgeChunkPageRe
 import com.nageoffer.ai.ragent.knowledge.controller.request.KnowledgeChunkUpdateRequest;
 import com.nageoffer.ai.ragent.knowledge.controller.vo.KnowledgeChunkVO;
 import com.nageoffer.ai.ragent.knowledge.service.KnowledgeChunkService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -41,6 +43,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 知识库 Chunk 管理接口
  */
+@Tag(name = "知识库 Chunk", description = "分块明细的查询、编辑与启用/禁用")
 @RestController
 @RequiredArgsConstructor
 @Validated
@@ -51,6 +54,7 @@ public class KnowledgeChunkController {
     /**
      * 分页查询 Chunk 列表
      */
+    @Operation(summary = "分页查询 Chunk 列表")
     @GetMapping("/knowledge-base/docs/{doc-id}/chunks")
     public Result<IPage<KnowledgeChunkVO>> pageQuery(@PathVariable("doc-id") String docId,
                                                      @Validated KnowledgeChunkPageRequest requestParam) {

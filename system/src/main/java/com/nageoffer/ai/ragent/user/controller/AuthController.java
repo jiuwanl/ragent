@@ -23,6 +23,8 @@ import com.nageoffer.ai.ragent.user.controller.vo.LoginVO;
 import com.nageoffer.ai.ragent.framework.convention.Result;
 import com.nageoffer.ai.ragent.framework.web.Results;
 import com.nageoffer.ai.ragent.user.service.AuthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 认证控制器
  * 处理用户登录和登出相关的请求
  */
+@Tag(name = "认证", description = "登录、注册与会话；令牌放 Authorization 头，不带 Bearer 前缀")
 @RestController
 @RequiredArgsConstructor
 public class AuthController {
@@ -42,6 +45,7 @@ public class AuthController {
     /**
      * 用户登录接口
      */
+    @Operation(summary = "登录", description = "用户名或密码错误返回统一文案；连续失败触发防爆破锁定，锁定期间凭据正确也拒绝")
     @PostMapping("/auth/login")
     public Result<LoginVO> login(@Valid @RequestBody LoginRequest requestParam) {
         return Results.success(authService.login(requestParam));
@@ -50,6 +54,7 @@ public class AuthController {
     /**
      * 用户自助注册接口，注册成功后自动登录
      */
+    @Operation(summary = "自助注册", description = "注册即登录，角色固定普通用户；密码 BCrypt 存储")
     @PostMapping("/auth/register")
     public Result<LoginVO> register(@Valid @RequestBody RegisterRequest requestParam) {
         return Results.success(authService.register(requestParam));

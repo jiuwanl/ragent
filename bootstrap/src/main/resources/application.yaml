@@ -60,6 +60,13 @@ management:
     health:
       show-details: never
 
+# API 文档默认不裸奔：SPRINGDOC_ENABLED=true 时才暴露 /v3/api-docs 与 /swagger-ui
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_ENABLED:false}
+  swagger-ui:
+    enabled: ${SPRINGDOC_ENABLED:false}
+
 # Agent 执行架构（ragent.engine.type=agent 时生效）；单模型无 fallback，供应商可用性由 provider 侧保障
 agent:
   chat:

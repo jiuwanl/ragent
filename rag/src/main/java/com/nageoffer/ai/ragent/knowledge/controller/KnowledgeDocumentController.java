@@ -31,6 +31,8 @@ import com.nageoffer.ai.ragent.framework.web.Results;
 import com.nageoffer.ai.ragent.knowledge.service.KnowledgeDocumentService;
 import com.nageoffer.ai.ragent.knowledge.support.IngestionSpecSchemaProvider;
 import com.nageoffer.ai.ragent.rag.service.FileStorageService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -59,6 +61,7 @@ import java.util.Map;
  * 知识库文档管理控制器
  * 提供文档的上传、分块、删除、查询、启用/禁用等功能
  */
+@Tag(name = "知识库文档", description = "文档上传、入库分块与生命周期管理")
 @RestController
 @RequiredArgsConstructor
 @Validated
@@ -93,6 +96,7 @@ public class KnowledgeDocumentController {
     /**
      * 上传文档：入库记录 + 文件落盘，返回文档ID
      */
+    @Operation(summary = "上传文档", description = "multipart；sourceType（file/url）与 processMode（chunk/pipeline）必填，返回文档ID")
     @PostMapping(value = "/knowledge-base/{kb-id}/docs/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Result<KnowledgeDocumentVO> upload(@PathVariable("kb-id") String kbId,
                                               @RequestPart(value = "file", required = false) MultipartFile file,
@@ -103,6 +107,7 @@ public class KnowledgeDocumentController {
     /**
      * 开始分块：抽取文本 -> 分块 -> 嵌入并写入向量库
      */
+    @Operation(summary = "触发分块入库", description = "异步：RocketMQ 投递后解析 → 分块 → Embedding → 写向量库与关键词索引")
     @PostMapping("/knowledge-base/docs/{doc-id}/chunk")
     public Result<Void> startChunk(@PathVariable(value = "doc-id") String docId) {
         documentService.startChunk(docId);

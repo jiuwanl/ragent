@@ -23,6 +23,8 @@ import com.nageoffer.ai.ragent.framework.idempotent.IdempotentSubmit;
 import com.nageoffer.ai.ragent.framework.web.Results;
 import com.nageoffer.ai.ragent.rag.config.RAGDefaultProperties;
 import com.nageoffer.ai.ragent.rag.service.RAGChatService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,6 +36,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  * RAG 对话控制器
  * 提供流式问答与任务取消接口
  */
+@Tag(name = "RAG 问答（v1 编排管线）", description = "SSE 流式问答与任务取消；流式消费请用 curl -N 或 EventSource")
 @RestController
 @RequiredArgsConstructor
 public class RAGChatController {
@@ -44,6 +47,7 @@ public class RAGChatController {
     /**
      * 发起 SSE 流式对话
      */
+    @Operation(summary = "SSE 流式问答", description = "text/event-stream；问题 ≤500 字，可携带 conversationId 续聊")
     @IdempotentSubmit(
             key = "T(com.nageoffer.ai.ragent.framework.context.UserContext).getUserId()",
             message = "当前会话处理中，请稍后再发起新的对话"
@@ -60,6 +64,7 @@ public class RAGChatController {
     /**
      * 停止指定任务
      */
+    @Operation(summary = "停止流式任务", description = "跨节点取消：taskId 来自 SSE 事件流首包")
     @IdempotentSubmit
     @PostMapping(value = "/rag/v3/stop")
     public Result<Void> stop(@RequestParam String taskId) {
