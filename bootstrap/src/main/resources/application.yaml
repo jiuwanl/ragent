@@ -42,8 +42,8 @@ ragent:
 # Agent 执行架构（ragent.engine.type=agent 时生效）；单模型无 fallback，供应商可用性由 provider 侧保障
 agent:
   chat:
-    provider: deepseek   # 引用 ai.providers 下的供应商，取其 url / api-key / endpoints.chat
-    model: deepseek-flash    # 直接传给 OpenAI 兼容端点的模型名
+    provider: mimo   # 引用 ai.providers 下的供应商，取其 url / api-key / endpoints.chat
+    model: mimo-v2.6-flash    # 直接传给 OpenAI 兼容端点的模型名（主对话走 mimo，省百炼 1M 额度）
   max-iters: 10         # ReAct 循环上限，超出后熔断收尾
   max-retries: 1        # 最大尝试次数含首次，1 即不重试
   sse-timeout-ms: 900000
@@ -226,6 +226,12 @@ ai:
       api-key: ${DEEPSEEK_API_KEY:}
       endpoints:
         chat: /v1/chat/completions
+    # mimo 中转：OpenAI 兼容入口在根地址（/v1/chat/completions 已探测确认存在；无 /v1/embeddings，故 embedding 归百炼）
+    mimo:
+      url: https://api.xiaomimimo.com
+      api-key: ${MIMO_API_KEY:}
+      endpoints:
+        chat: /v1/chat/completions
 
   selection:
     failure-threshold: 2
@@ -235,6 +241,7 @@ ai:
     message-chunk-size: 1
 
   chat:
+    # 候选只留有云 Key 的百炼模型（ollama 禁用、deepseek/aihubmix 无 Key，删掉防运行期白撞再回退）
     candidates:
       - id: qwen-plus
         provider: bailian
@@ -242,19 +249,9 @@ ai:
       - id: qwen-flash
         provider: bailian
         model: qwen-flash
-      - id: qwen3-local
-        provider: ollama
-        model: qwen3:8b-fp16
       - id: qwen3-max
         provider: bailian
         model: qwen3-max
-        supports-thinking: true
-      - id: gpt-5.4
-        provider: aihubmix
-        model: gpt-5.4
-      - id: deepseek-flash
-        provider: deepseek
-        model: deepseek-flash
         supports-thinking: true
 
     default-tier: standard
@@ -262,33 +259,24 @@ ai:
 
     tiers:
       fast:
-        candidates: [ qwen-flash, qwen-plus, qwen3-local ]
+        candidates: [ qwen-flash, qwen-plus ]
         timeout-ms: 5000
       standard:
-        candidates: [ qwen3-max, qwen-plus, deepseek-flash, qwen3-local, gpt-5.4 ]
+        candidates: [ qwen3-max, qwen-plus ]
         timeout-ms: 120000
       deep:
-        candidates: [ qwen3-max, deepseek-flash ]
+        candidates: [ qwen3-max ]
         timeout-ms: 180000
 
   embedding:
     default-model: qwen-emb-8b
+    # 只留百炼（mimo 无 /v1/embeddings 端点，已探测确认；ollama/aihubmix 无 Key 或禁用）
     candidates:
       - id: qwen-emb-8b
         provider: bailian
         model: text-embedding-v4
         dimension: ${rag.default.dimension}
         priority: 1
-      - id: qwen-emb-local
-        provider: ollama
-        model: qwen3-embedding:8b-fp16
-        dimension: ${rag.default.dimension}
-        priority: 2
-      - id: text-embedding-3-large
-        provider: aihubmix
-        model: text-embedding-3-large
-        dimension: ${rag.default.dimension}
-        priority: 3
 
   rerank:
     default-model: qwen3-rerank
