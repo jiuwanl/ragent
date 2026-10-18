@@ -77,12 +77,14 @@ cd frontend && npm run dev
 
 ### 修改代码后的关键步骤
 
-`bootstrap` 目录下 `mvn spring-boot:run` 解析兄弟模块走 **~/.m2 已安装 jar**，不是工作区源码。改了 `system` / `rag` / `agent` 等模块后必须先安装，否则运行的是旧代码（典型症状：新接口 404 `No static resource ...`）：
+`bootstrap` 目录下 `mvn spring-boot:run` 解析兄弟模块走 **本地仓库已安装 jar**，不是工作区源码。改了 `system` / `rag` / `agent` 等模块后必须先安装，否则运行的是旧代码（典型症状：新接口 404 `No static resource ...`，或改了逻辑行为却是旧的）：
 
 ```bash
 mvn install -pl <模块名> -am -DskipTests   # 例：mvn install -pl system -am -DskipTests
 # 然后重启后端
 ```
+
+> **本机双仓库坑**：PATH 里的 `mvn`（`D:\DevTools\apache-maven-3.8.9`）全局 settings 指向 `D:\DevTools\.m2`，仓库根目录的 `./mvnw` 指向 `C:\Users\Lenovo\.m2`——**install 和起后端必须用同一个**，否则一边装的新 jar 另一边永远读不到（详见 §8）。
 
 ### 停止
 
@@ -172,7 +174,9 @@ curl -s $BASE/user/me -H "Authorization: $TOKEN"
 | 坑 | 现象 | 对策 |
 |:---|:---|:---|
 | **Git Bash 中文转码** | curl `-d` 内联中文变 GBK，后端报 `Invalid UTF-8` / `Character decoding failed` | JSON body 一律用 ASCII（英文名/ID）；URL 参数中文用 `question@C:/path/to/file.txt` 文件载荷；multipart 上传不受影响 |
-| **修改代码不生效** | 新接口 404 `No static resource` | 见 §5：先 `mvn install -pl <模块> -am -DskipTests` 再重启 |
+| **修改代码不生效** | 新接口 404 `No static resource`，或改了逻辑行为仍是旧的 | 见 §5：先 `mvn install -pl <模块> -am -DskipTests` 再重启 |
+| **mvn 与 mvnw 双仓库** | 同一份代码 install 后起后端行为还是旧的——PATH 的 `mvn` 读 `D:\DevTools\.m2`，`./mvnw` 读 `C:\Users\Lenovo\.m2`，jar 装错了仓 | install 与 `spring-boot:run` 用同一个 mvn；排查可用 `jcmd <PID> VM.system_properties \| grep class.path` 看实际加载的是哪个仓的 jar |
+| **登录被防爆破锁定** | 连续 5 次错密码（用户名+IP 维度）后 15 分钟内凭据正确也拒，提示「操作过于频繁，请稍后再试」 | 等 TTL 自动恢复；或手动解锁：`docker exec ragent-redis redis-cli -a 123456 --no-auth-warning del "auth:login:lock:u:<用户名>"`；临时逃生阀：配置 `ragent.auth.brute-force.enabled: false` 后重启后端 |
 | **残留 JVM** | 重启报 `Port 9090 was already in use` | `netstat -ano \| grep 9090` 找 PID → `taskkill //PID <pid> //F` |
 | **MinerU 未配置** | PDF 解析不可用 | `MINERU_API_KEY` 未配；md/txt/csv 正常，暂用这些格式 |
 | **混合检索默认关** | 本地开箱只有向量单通道 | ES（关键词）/ LightRAG（图谱）/ 联网搜索需额外基础设施，在 `rag.keyword.type` / `rag.graph.type` / `rag.search.channels` 开启 |
