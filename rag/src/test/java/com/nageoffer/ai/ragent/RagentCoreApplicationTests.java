@@ -17,9 +17,11 @@
 
 package com.nageoffer.ai.ragent;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
+@Tag("live")
 @SpringBootTest
 class RagentCoreApplicationTests {
 

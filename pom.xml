@@ -39,6 +39,13 @@
         <!-- surefire 配置中的 @{argLine} 需要该属性存在（通常由 jacoco 定义）；
              未接入 jacoco 时给出空默认值，避免 fork 出的测试 JVM 收到字面量 @{argLine} 直接崩溃 -->
         <argLine/>
+        <!-- 测试分层（JUnit @Tag）：
+             live        = 需要全量中间件 + 云 API Key 的真实环境测试，默认排除，干净环境可跑
+             integration = 只需要真实 Redis 的集成测试，默认排除，用 -Dgroups=integration 单独执行
+             默认命令 ./mvnw test = 干净环境全绿；全部执行用 -DexcludedGroups= 空值覆盖 -->
+        <groups/>
+        <excludedGroups>live,integration</excludedGroups>
+        <jacoco.version>0.8.15</jacoco.version>
     </properties>
 
     <modules>
@@ -300,7 +307,32 @@
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
                     <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar}</argLine>
+                    <!-- 走 properties 插值而非字面量，-Dgroups / -DexcludedGroups 才能覆盖默认分层 -->
+                    <groups>${groups}</groups>
+                    <excludedGroups>${excludedGroups}</excludedGroups>
                 </configuration>
+            </plugin>
+
+            <!-- 覆盖率只出报告不设红线：./mvnw verify 后看 */target/site/jacoco/index.html -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <plugin>

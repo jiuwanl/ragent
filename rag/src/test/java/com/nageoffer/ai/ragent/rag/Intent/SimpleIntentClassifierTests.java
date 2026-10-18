@@ -24,6 +24,7 @@ import com.nageoffer.ai.ragent.framework.convention.ChatRequest;
 import com.nageoffer.ai.ragent.infra.chat.LLMService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -36,6 +37,7 @@ import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 @Slf4j
+@Tag("live")
 @SpringBootTest
 @RequiredArgsConstructor(onConstructor = @__(@Autowired))
 public class SimpleIntentClassifierTests {

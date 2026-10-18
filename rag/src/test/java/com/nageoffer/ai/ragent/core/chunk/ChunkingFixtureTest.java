@@ -48,10 +48,14 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 /**
  * 分块结果核对报告：fixture 字节 → 真解析器 → 真 chunker → 成品块，逐块导出到 {@code target/chunking-report.md}
  * <p>
- * 不做断言，只把切分结果摊开给人看；同一份 markdown 另有 pdf / docx 形态，那两种走 MinerU 外部服务，
+ * 报告供人工核对切分效果；同时守住最低断言（解析/切分产物非空、空白内容必须携带资产、报告落盘），
+ * 避免该类退化为只打印不验证的脚本。同一份 markdown 另有 pdf / docx 形态，那两种走 MinerU 外部服务，
  * 离线跑不了，需要从知识库上传后人工核对
  */
 class ChunkingFixtureTest {
@@ -96,12 +100,21 @@ class ChunkingFixtureTest {
         StringBuilder report = new StringBuilder("# 分块结果核对报告\n");
         for (String fixture : List.of(MANUAL, NOTES, RECORDS)) {
             List<Block> blocks = parse(fixture);
+            assertFalse(blocks.isEmpty(), "解析产物不应为空：" + fixture);
             report.append("\n## ").append(fixture).append('\n');
             for (ChunkBudget budget : List.of(ChunkBudget.defaults(), TIGHT, CAP_ONLY)) {
-                appendBudgetSection(report, chunk(blocks, budget), budget);
+                List<Chunk> chunks = chunk(blocks, budget);
+                assertFalse(chunks.isEmpty(), "切分产物不应为空：" + fixture + " @maxChars=" + budget.maxChars());
+                for (Chunk c : chunks) {
+                    assertTrue(!c.content().isBlank() || !c.metadata().assets().isEmpty(),
+                            "空白内容的块必须携带资产（图片等），fixture=" + fixture + ", index=" + c.index());
+                }
+                appendBudgetSection(report, chunks, budget);
             }
         }
-        Files.writeString(Path.of("target", "chunking-report.md"), report.toString(), StandardCharsets.UTF_8);
+        Path reportFile = Path.of("target", "chunking-report.md");
+        Files.writeString(reportFile, report.toString(), StandardCharsets.UTF_8);
+        assertTrue(Files.exists(reportFile) && Files.size(reportFile) > 0, "核对报告应落盘且非空");
     }
 
     private static void appendBudgetSection(StringBuilder report, List<Chunk> chunks, ChunkBudget budget) {

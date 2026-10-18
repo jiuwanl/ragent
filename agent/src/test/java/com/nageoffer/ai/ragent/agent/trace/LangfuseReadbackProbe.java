@@ -56,7 +56,6 @@ import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
-import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -78,7 +77,6 @@ class LangfuseReadbackProbe {
     private static final String SERVICE = "ragent-service-plan-d-probe";
     private static final String SESSION = "probe-conv-planD";
 
-    @Test
     void emit() throws Exception {
         GlobalOpenTelemetry.resetForTest();
         OtlpHttpSpanExporter exporter = OtlpHttpSpanExporter.builder()

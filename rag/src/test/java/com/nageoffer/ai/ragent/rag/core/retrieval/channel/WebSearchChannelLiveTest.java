@@ -22,6 +22,7 @@ import com.nageoffer.ai.ragent.rag.config.SearchChannelProperties;
 import com.nageoffer.ai.ragent.rag.core.retrieval.RetrievalBudget;
 import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
@@ -31,9 +32,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * You.com 联网检索通道真实 API 集成测试
  * <p>
- * 仅当环境变量 YDC_API_KEY 存在时运行（1 次真实调用），日常构建自动跳过
+ * 仅当环境变量 YDC_API_KEY 存在时运行（1 次真实调用），日常构建自动跳过；
+ * 另打 live 标签双重保险：默认测试分层直接排除，-DexcludedGroups= 才参与执行
  */
 @DisplayName("You.com 联网检索通道（真实 API）")
+@Tag("live")
 @EnabledIfEnvironmentVariable(named = "YDC_API_KEY", matches = ".+")
 class WebSearchChannelLiveTest {
 
