@@ -19,6 +19,7 @@ package com.nageoffer.ai.ragent.rag.config;
 
 import com.nageoffer.ai.ragent.user.config.SaTokenConfig;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.HttpMessageConverters;
 import org.springframework.http.converter.StringHttpMessageConverter;
@@ -49,12 +50,20 @@ public class RagentWebMvcConfiguration implements WebMvcConfigurer {
      */
     private final DemoModeInterceptor demoModeInterceptor;
 
+    /**
+     * CORS 白名单。allowCredentials(true) 与 allowedOriginPatterns("*") 组合等于任意站点
+     * 都能带着用户 cookie 发起跨站请求，必须收敛到明确来源；
+     * vite dev 代理会原样透传 Origin: http://localhost:5173，本端口必须在列，否则本地前端预检直接被浏览器拦下
+     */
+    @Value("${ragent.web.cors.allowed-origin-patterns:http://localhost:5173,http://localhost:5174,http://localhost:8080}")
+    private String[] allowedOriginPatterns;
+
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         // 顺序介于登录与用户上下文之间，语义与原 SaTokenConfig 注册位置一致
         registry.addInterceptor(demoModeInterceptor)
                 .addPathPatterns("/**")
-                .excludePathPatterns("/auth/**", "/error")
+                .excludePathPatterns("/auth/**", "/error", "/actuator/**")
                 .order(SaTokenConfig.ORDER_DEMO_MODE);
     }
 
@@ -84,7 +93,7 @@ public class RagentWebMvcConfiguration implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOriginPatterns("*")
+                .allowedOriginPatterns(allowedOriginPatterns)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                 .allowedHeaders("*")
                 .exposedHeaders("Authorization")

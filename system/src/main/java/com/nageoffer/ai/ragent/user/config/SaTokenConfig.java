@@ -75,16 +75,16 @@ public class SaTokenConfig implements WebMvcConfigurer {
                 }))
                 // 拦截所有路径
                 .addPathPatterns("/**")
-                // 排除认证相关路径和错误页面
-                .excludePathPatterns("/auth/**", "/error")
+                // 排除认证相关路径、错误页面与健康检查（/actuator/health 需匿名可达，否则探活本身要先登录）
+                .excludePathPatterns("/auth/**", "/error", "/actuator/**")
                 .order(ORDER_LOGIN);
 
         // 注册用户上下文拦截器
         registry.addInterceptor(userContextInterceptor)
                 // 拦截所有路径
                 .addPathPatterns("/**")
-                // 排除认证相关路径和错误页面
-                .excludePathPatterns("/auth/**", "/error")
+                // 排除认证相关路径、错误页面与健康检查
+                .excludePathPatterns("/auth/**", "/error", "/actuator/**")
                 .order(ORDER_USER_CONTEXT);
     }
 }
