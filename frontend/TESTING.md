@@ -14,7 +14,7 @@ server: {
   port: 5173,
   proxy: {
     "/api": {
-      target: "http://localhost:8080",
+      target: "http://localhost:9090",
       changeOrigin: true,
       secure: false
     }
@@ -26,14 +26,14 @@ server: {
 
 #### 1. 确认后端服务运行
 ```bash
-curl http://localhost:8080/api/ragent/knowledge-base
+curl http://localhost:9090/api/ragent/knowledge-base
 # 应该返回：{"code":"A000001","message":"未登录或登录已过期",...}
 # 这说明后端服务正常，只是需要登录
 ```
 
 #### 2. 重启前端开发服务器
 ```bash
-cd /Users/machen/workspace/nageoffer/ragent/frontend
+cd <仓库根目录>/frontend
 
 # 停止旧的服务器（如果有）
 pkill -f "vite"
@@ -55,8 +55,8 @@ npm run dev
 - 点击"新建知识库"
 - 填写表单：
   - 名称：测试知识库
-  - Embedding模型：text-embedding-v3
-  - Collection名称：test_kb
+  - Embedding模型：text-embedding-v4
+  - Collection名称：testkb（只允许小写字母和数字）
 - 点击创建
 
 ### 常见问题
@@ -80,7 +80,7 @@ UPDATE t_user SET role = 'admin' WHERE username = 'your_username';
 
 | 前端请求 | 代理后 | 后端实际路径 |
 |---------|--------|-------------|
-| /api/ragent/knowledge-base | http://localhost:8080/api/ragent/knowledge-base | /knowledge-base (context-path已包含/api/ragent) |
+| /api/ragent/knowledge-base | http://localhost:9090/api/ragent/knowledge-base | /knowledge-base (context-path已包含/api/ragent) |
 
 ### 网络请求检查
 
@@ -96,12 +96,11 @@ UPDATE t_user SET role = 'admin' WHERE username = 'your_username';
 - Response: "No static resource..."
 - 解决：检查代理配置，重启开发服务器
 
-### 当前状态
+### 服务地址
 
-✅ 后端服务运行中：http://localhost:8080
-✅ 前端服务运行中：http://localhost:5174
-✅ 代理配置已添加
-✅ 可以开始测试
+- 后端：http://localhost:9090（上下文 `/api/ragent`）
+- 前端：http://localhost:5173（端口被占时 vite 顺延 5174）
+- 代理配置已内置 `vite.config.ts`
 
 ### 下一步
 
